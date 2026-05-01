@@ -29,6 +29,36 @@ SPOF 제거하고 디커플링으로 진행
 ---
 
 
+# 적용 방법 
+	implementation 'org.springframework.boot:spring-boot-starter-quartz'   <- 의존성 추가 
+    batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: always
+
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      # local 전용: QRTZ_* 11개 메타테이블 자동 생성
+      # prod 에서는 never + 수동 DDL (db/migration/quartz_tables_mysql_innodb.sql) 적용 권장
+      initialize-schema: always
+    properties:
+      org.quartz.scheduler.instanceName: PeopleCoreClusteredScheduler
+      # 노드별 자동 ID 생성 (HOSTNAME + 타임스탬프 조합) — 멀티 파드 식별용
+      org.quartz.scheduler.instanceId: AUTO
+      org.quartz.jobStore.class: org.quartz.impl.jdbcjobstore.JobStoreTX
+      org.quartz.jobStore.driverDelegateClass: org.quartz.impl.jdbcjobstore.StdJDBCDelegate
+      org.quartz.jobStore.tablePrefix: QRTZ_
+      # 멀티 노드 환경에서 한 노드만 fire 보장 (DB row lock 기반)
+      org.quartz.jobStore.isClustered: true
+      # 노드 헬스체크 주기(ms) — QRTZ_SCHEDULER_STATE 폴링 간격. 노드 다운 감지에 영향
+      org.quartz.jobStore.clusterCheckinInterval: 10000
+      org.quartz.threadPool.class: org.quartz.simpl.SimpleThreadPool
+      # 동시 fire 가능한 잡 수. vacation 6 + attendance 자동마감 + 파티션 합쳐 보수적으로 5 시작 → 운영 모니터링 후 조정
+      org.quartz.threadPool.threadCount: 5
+      org.quartz.threadPool.threadPriority: 5
+
 
 ---
 
