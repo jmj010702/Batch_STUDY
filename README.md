@@ -62,6 +62,22 @@ SPOF 제거하고 디커플링으로 진행
 
 ---
 
+## Job implements를 받아야됨 
+quartz 프레임워크와의 계약 Scheduler.scheduleJob은 Class<?, extends Job> 만 받기 때문에 표준 진입점이 org.quartz.job인터페이스의 excute(JobExcutionContext) 메서드 
+실행 시각이 되면 quartz가 클래스를 reflection으로 인스턴스화 한뒤  excute호출. 이 때 메서드 시그니처명이 안 맞으면 NPE가 남 
+
+## 필드 주입 vs private final + 생성자 주입 
+일반적인 코드에서는 private final + 생성자 주입 패턴을 많이 쓰지만 Quartz Job은 예외. 왜냐 
+항목 							일반 빈 							quartz Job
+인스턴스 생성 주체 				spring 컨테이너 						quartz가 매 작동때마다 reflection으로 직접
+호출되는 생성자 					@Autowired 붙은거 					빈 생성자(NoArgs)만 
+의존성 주입 통로 				생성자 								필드 @AutoWired 
+final이 가능한가 			가능(생성자에서 할당)						불가(빈 생성자에서는 final 못 채움)
+&& 리플렉션 : 클래스 이름만 가지고 해당 클래스의 정보를 파헤쳐서 강제로 객체를 만들어내는 자바의 코드 
+&& JobExecutionContext : quartz가 스케줄러가 작업을 실행할 때 넘겨주는 정보
+
+---
+
 ## - JDBC 클러스터링이란 
 여러 대의 서버가 하나의 Job 스케줄을 공유하고 관리하도록 만드는 설정 
 DB를 중심으로 모든 서버가 동일한 DB테이블을 바라봐 Job을 시작하기전에 DB에 LOCK을 걸어 중복Job 방지 
@@ -88,6 +104,12 @@ Quartz 11개 테이블
 - 데이터 보존 : 서버가 재시작 해도 DB에 저장되어 있기에 작업이 사라지지 않음
 
 단점 
+- 마찬가지로 DB가 죽으면 스케줄러도 같이 멈춤 -> redis의 문제와 같음
+- 성능이 떨어짐 -> 매번 DB에 락을 걸고 상태를 업데이트해야 하므로 메모리 방식(기존에 사용하던 JVM)보다 속도가 느림
+- 시간 동기화 : 클러스터에 참여하는 모든 서버의 시스템 시간이 일ㄹ치해야 함  -NTP(Network Time Protocol)를 사용해 해결 가능
+
+## 
+
 
 - 마찬가지로 DB가 죽으면 스케줄러도 같이 멈춤 -> redis의 문제와 같음
 - 성능이 떨어짐 -> 매번 DB에 락을 걸고 상태를 업데이트해야 하므로 메모리 방식(기존에 사용하던 JVM)보다 속도가 느림
