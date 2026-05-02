@@ -73,8 +73,26 @@ quartz 프레임워크와의 계약 Scheduler.scheduleJob은 Class<?, extends Jo
 호출되는 생성자 					@Autowired 붙은거 					빈 생성자(NoArgs)만 
 의존성 주입 통로 				생성자 								필드 @AutoWired 
 final이 가능한가 			가능(생성자에서 할당)						불가(빈 생성자에서는 final 못 채움)
+
 && 리플렉션 : 클래스 이름만 가지고 해당 클래스의 정보를 파헤쳐서 강제로 객체를 만들어내는 자바의 코드 
 && JobExecutionContext : quartz가 스케줄러가 작업을 실행할 때 넘겨주는 정보
+
+---
+
+## jobLauncher 경유 vs Service 직접 호출 
+항목							jobLauncher 									Service 직접 호출 
+중복 실행 차단 					Batch_JOB_INSTANCE Unique제약이 자동 차단 		없음, 두번 호출하면 두 번 실행
+멱등 책임자 						프레임워크(DB 제약) 								Service 코드(로직 내에서 막아야함)
+청크/재시작 						실패 지점부터 재시작 								없음
+추적 							Batch_JOB_EXCUTION에 read/write 카운트, 상태 영속      로그 밖에 없음 
+
+---
+
+## Quartz로 바꾸면 Scheduler가 필요없지 않나? 
+- 시각이 되면 작업 실행하는 엔진  -> quartz Schedular.
+- 작업 실행되는 본체(service 호출)  -> @@Scheduler
+
+ 
 
 ---
 
@@ -102,13 +120,15 @@ Quartz 11개 테이블
 - 고가용성 : 서버 한 대가 고장나도 다른 서버가 스케줄을 이어받아 실행함 (중단없는 서비스)
 - 부하분산 : 여러 서버가 작업을 나눠서 처리할 수 있어 시스템 전체의 부담이 줄어듬
 - 데이터 보존 : 서버가 재시작 해도 DB에 저장되어 있기에 작업이 사라지지 않음
+- 병렬 작업 : 배포 환경에서 멀티 파드가 병렬적으로 job을 실행할 수 있음  
 
 단점 
 - 마찬가지로 DB가 죽으면 스케줄러도 같이 멈춤 -> redis의 문제와 같음
 - 성능이 떨어짐 -> 매번 DB에 락을 걸고 상태를 업데이트해야 하므로 메모리 방식(기존에 사용하던 JVM)보다 속도가 느림
 - 시간 동기화 : 클러스터에 참여하는 모든 서버의 시스템 시간이 일ㄹ치해야 함  -NTP(Network Time Protocol)를 사용해 해결 가능
 
-## 
+## 배치는 잡별 misfore 정책을 다르게 생성할 수 있음 
+misfore 정책은 트리거 단위로 설정 
 
 
 - 마찬가지로 DB가 죽으면 스케줄러도 같이 멈춤 -> redis의 문제와 같음
