@@ -13,3 +13,11 @@
  job 실패 -> catch -> throw new JobExcutionException -> Quartz -> jobListener.jobWasExcuted -> DiscordWebhookSender.send -> Discord 채널 알림 
 
 새 잡을 추가해도 JobListener가 자동 적용 
+
+
+---
+
+Quartz와 Spring Batch는 엄연히 다른 것 
+quartz가 "00:00 시각에 한 노드만 실행"까지 책임지고, spring batch가 회사 단위로 처리 결과 영속 + 청크 commit+ 카운트 집계 책임짐 
+
+
